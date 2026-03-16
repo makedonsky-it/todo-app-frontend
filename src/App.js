@@ -17,6 +17,7 @@ function App() {
   const [isCompleted, setIsCompleted] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [editingOriginal, setEditingOriginal] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
 
   const completedCount = tasks.filter((task) => getTaskCompleted(task)).length;
@@ -40,6 +41,7 @@ function App() {
     setTaskTitle('');
     setIsCompleted(false);
     setEditingId(null);
+    setEditingOriginal(null);
   };
 
   const getErrorText = (error) => {
@@ -55,10 +57,21 @@ function App() {
 
     try {
       if (editingId) {
-        await axios.patch(`${API_BASE_URL}/tasks/${editingId}`, {
-          title,
-          completed: isCompleted,
-        });
+        const patchData = {};
+
+        if (!editingOriginal || title !== editingOriginal.title) {
+          patchData.title = title;
+        }
+        if (!editingOriginal || isCompleted !== editingOriginal.completed) {
+          patchData.completed = isCompleted;
+        }
+
+        if (Object.keys(patchData).length === 0) {
+          setStatusMessage('Изменений нет');
+          return;
+        }
+
+        await axios.patch(`${API_BASE_URL}/tasks/${editingId}`, patchData);
         setStatusMessage('Задача обновлена');
       } else {
         await axios.post(`${API_BASE_URL}/tasks`, { title });
@@ -74,16 +87,22 @@ function App() {
   };
 
   const handleEdit = (task) => {
-    setTaskTitle(getTaskTitle(task));
-    setIsCompleted(getTaskCompleted(task));
+    const originalTitle = getTaskTitle(task);
+    const originalCompleted = getTaskCompleted(task);
+
+    setTaskTitle(originalTitle);
+    setIsCompleted(originalCompleted);
     setEditingId(task.id);
+    setEditingOriginal({
+      title: originalTitle,
+      completed: originalCompleted,
+    });
     setStatusMessage('');
   };
 
   const handleToggleCompleted = async (task) => {
     try {
       await axios.patch(`${API_BASE_URL}/tasks/${task.id}`, {
-        title: getTaskTitle(task),
         completed: !getTaskCompleted(task),
       });
 
